@@ -20,7 +20,7 @@ go run .
 (Optional) Compile and run
 
 ```
-go run .
+go build .
 
 ./scraper
 ```
