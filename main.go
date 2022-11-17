@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-gota/gota/dataframe"
 	"github.com/gocolly/colly"
 )
 
@@ -18,18 +19,25 @@ type Item struct {
 	Text  string
 }
 
+const csvName = "export.csv"
+
+const searchLink = "https://www.dba.dk/soeg/?soeg=gtx+1080+ti"
+
 func main() {
 
-	file, err := os.Create("export.csv")
+	file, err := os.Create(csvName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
+
+	defer func() {
+		file.Close()
+		sortCSV(csvName, "Price")
+	}()
 
 	writer := csv.NewWriter(file)
-	writer.Comma = '\t'
 	defer writer.Flush()
-
+	writer.Comma = ','
 	headers := []string{"Price", "Date", "Link", "Text"}
 	writer.Write(headers)
 
@@ -48,7 +56,7 @@ func main() {
 		replacer := strings.NewReplacer("-", "", ",", " ", "\"", "", "\n", "")
 		item.Text = replacer.Replace(e.ChildText(".listingLink"))
 
-		row := []string{item.Price, item.Date, item.Link, item.Text}
+		row := []string{item.Price, item.Date, item.Link + " ", item.Text}
 		writer.Write(row)
 	})
 
@@ -65,25 +73,27 @@ func main() {
 		fmt.Println(response.StatusCode)
 	})
 
-	c.Visit("https://www.dba.dk/soeg/?soeg=gtx+1080+ti")
+	c.Visit(searchLink)
 
-	//sortCSV()
 }
 
-// func sortCSV() {
-// 	csvfile, err := os.Open("export.csv")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
+func sortCSV(csvName string, sortBy string) {
+	file, err := os.Open(csvName)
+	defer file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-// 	df := dataframe.ReadCSV(csvfile)
+	df := dataframe.ReadCSV(file)
 
-// 	sorted := df.Arrange(dataframe.Sort("Price"))
+	sorted := df.Arrange(
+		dataframe.Sort(sortBy),
+	)
 
-// 	f, err := os.Create("1export.csv")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
+	file, err = os.Create(csvName)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-// 	sorted.WriteCSV(f)
-// }
+	sorted.WriteCSV(file)
+}
